@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#ffb91f" />
+  <meta name="description" content="Peça suas bebidas favoritas e pague com Pix." />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./logo-dev-house.png" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-dev-house.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <title>Dev. House | Bebidas</title>
+</head>
+
+<body>
+  <main id="inicio">
+    <section class="menu-section" id="cardapio">
+      <div class="top-actions">
+        <button class="cart-trigger" id="cart-trigger" aria-label="Abrir sacola">
+          <span class="bag-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+              <path d="M5 8h14l1 13H4L5 8Z" />
+              <path d="M9 9V6a3 3 0 0 1 6 0v3" />
+            </svg></span><span>Sacola</span><b id="cart-count">0</b>
+        </button>
+      </div>
+      <div class="shop-intro"><span class="eyebrow dark">DEV. HOUSE | BEBIDAS</span>
+        <h1>O que você vai<br /><em>beber hoje?</em></h1>
+        <p>Escolha suas bebidas favoritas e pague com PIX.</p>
+      </div>
+      <label class="search-box"><span class="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <circle cx="10.8" cy="10.8" r="6.8" />
+            <path d="m16 16 4.2 4.2" />
+          </svg></span><input id="product-search" type="search" placeholder="Buscar no cardápio"
+          autocomplete="off" /><kbd>⌘ K</kbd></label>
+      <div class="category-tabs" role="group" aria-label="Categorias de bebidas">
+        <button class="category-tab active" data-category="todos">Tudo <span>06</span></button>
+        <button class="category-tab" data-category="cerveja">Cervejas</button>
+        <button class="category-tab" data-category="refrigerante">Refrigerantes</button>
+        <button class="category-tab" data-category="agua">Águas</button>
+      </div>
+      <div class="product-grid" id="product-grid"></div>
+      <p class="no-results" id="no-results" hidden>Nenhuma bebida encontrada. Tente outra busca.</p>
+    </section>
+  </main>
+
+  <button class="mobile-cart" id="mobile-cart" hidden><span><b id="mobile-cart-count">0</b> itens na
+      sacola</span><strong id="mobile-cart-total">R$ 0,00</strong><span aria-hidden="true">→</span></button>
+
+  <div class="overlay" id="overlay" hidden>
+    <aside class="drawer" aria-labelledby="drawer-title" aria-modal="true" role="dialog">
+      <div class="drawer-head">
+        <div><span class="eyebrow dark">SEU PEDIDO</span>
+          <h2 id="drawer-title">Sua sacola</h2>
+        </div><button class="icon-button" id="close-drawer" aria-label="Fechar">×</button>
+      </div>
+      <div id="cart-items" class="cart-items"></div>
+      <div class="empty-cart" id="empty-cart"><span>＋</span><strong>Sua sacola está vazia</strong>
+        <p>Adicione uma bebida para começar.</p><button class="text-button" id="keep-shopping">VER CARDÁPIO →</button>
+      </div>
+      <div class="drawer-bottom" id="drawer-bottom">
+        <div class="total-row"><span>Total</span><strong id="cart-total">R$ 0,00</strong></div><button
+          class="primary-button" id="checkout">Continuar para pagamento <span>→</span></button>
+        <p>Pagamento seguro via PIX</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="modal-backdrop" id="payment-modal" hidden>
+    <section class="payment-card" role="dialog" aria-modal="true" aria-labelledby="payment-title">
+      <button class="icon-button modal-close" id="close-payment" aria-label="Fechar">×</button>
+      <div class="payment-top"><span class="pix-symbol">✳</span><span class="eyebrow dark">PAGAMENTO INSTANTÂNEO</span>
+      </div>
+      <h2 id="payment-title">Pague com <em>Pix</em></h2>
+      <p class="payment-intro">Abra o app do seu banco, escaneie o QR Code ou copie o código Pix.</p>
+      <div class="payment-total"><span>Valor do pedido</span><strong id="payment-total">R$ 0,00</strong></div>
+      <div class="qr-frame" id="qr-frame">
+        <div id="qr-placeholder" class="qr-placeholder"><span>▦</span><small>Gerando seu QR Code Pix…</small></div>
+        <canvas id="qr-canvas" hidden></canvas>
+      </div>
+      <div class="pix-status" id="pix-status">Chave Pix não configurada</div>
+      <button class="primary-button" id="copy-pix" disabled>Copiar código PIX <span>↗</span></button>
+      <a class="whatsapp-button" id="whatsapp-order" href="https://wa.me/5581985483142" target="_blank"
+        rel="noopener noreferrer">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path
+            d="M20.5 3.5A11.8 11.8 0 0 0 2 17.7L.5 23.5l6-1.5A11.8 11.8 0 0 0 20.5 3.5ZM12 21a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.6.9.9-3.5-.2-.4A9.8 9.8 0 1 1 12 21Zm5.4-7.3c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-.9 1.1-.3.2-.6.1a8 8 0 0 1-2.4-1.5 9 9 0 0 1-1.7-2.1c-.2-.3 0-.5.1-.6l.5-.6c.1-.2.2-.3.3-.5s0-.4 0-.5-.7-1.7-1-2.3c-.2-.6-.5-.5-.7-.5H7.6c-.2 0-.5.1-.8.4s-1 1-1 2.4 1 2.8 1.1 3 2 3.1 4.9 4.3c.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4s-.2-.2-.5-.4Z" />
+        </svg>
+        Solicitar pedido pelo WhatsApp
+      </a>
+      <p class="payment-footnote">O pagamento é feito diretamente para a chave PIX da casa.</p>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+
+</html>
