@@ -82,17 +82,13 @@ const $ = s => document.querySelector(s),
         style: 'currency',
         currency: 'BRL'
     });
-let cart = JSON.parse(localStorage.getItem('dh-cart') || '{}'),
-    pix = {
-        ...(JSON.parse(localStorage.getItem('dh-pix') || 'null') || {}),
-        key: '10974139424',
-        name: 'DEV HOUSE',
-        city: 'RECIFE'
-    },
-    payload = '';
+let cart = JSON.parse(localStorage.getItem('dh-cart') || '{}');
 let activeCategory = 'todos',
     searchQuery = '',
     selectedQty = {};
+const PIX_KEY = '69940061000135';
+let selectedPaymentMethod = 'pix';
+let selectedCardMethod = '';
 
 function saveCart() {
     localStorage.setItem('dh-cart', JSON.stringify(cart));
@@ -126,8 +122,27 @@ function renderCart() {
     $('#drawer-bottom').hidden = rows.length === 0;
     $('#cart-items').innerHTML = rows.map(p => `<div class="cart-row">${productArt(p, true)}<div><div class="cart-name">${p.name}</div><div class="cart-price">${money(p.price)} / un.</div></div><div class="quantity"><button data-qty="${p.id}" data-delta="-1" aria-label="Remover uma unidade">−</button><span>${cart[p.id]}</span><button data-qty="${p.id}" data-delta="1" aria-label="Adicionar uma unidade">+</button></div></div>`).join('');
     const lines = rows.map(p => `• ${cart[p.id]}x ${p.name} — ${money(p.price)} cada (${money(p.price * cart[p.id])})`);
-    const message = ['Olá! Gostaria de fazer este pedido na Dev. House:', ...lines, `Total: ${money(total)}`].join('\n');
-    $('#whatsapp-order').href = `https://wa.me/5581985483142?text=${encodeURIComponent(message)}`
+    updateWhatsAppOrder(lines, total)
+}
+
+function updateWhatsAppOrder(lines, total) {
+    const paymentLabel = selectedPaymentMethod === 'card'
+        ? (selectedCardMethod === 'debit' ? 'Cartão de débito' : selectedCardMethod === 'credit' ? 'Cartão de crédito' : 'Cartão (selecione crédito ou débito)')
+        : 'Pix';
+    const message = [
+        'Olá! Gostaria de fazer este pedido na Dev. House:',
+        ...lines,
+        `Total: ${money(total)}`,
+        `Forma de pagamento escolhida: ${paymentLabel}`
+    ].join('\n');
+    const whatsapp = $('#whatsapp-order');
+    const cardChoiceMissing = selectedPaymentMethod === 'card' && !selectedCardMethod;
+    whatsapp.href = cardChoiceMissing ? '#' : `https://wa.me/5581985483142?text=${encodeURIComponent(message)}`;
+    whatsapp.setAttribute('aria-disabled', String(cardChoiceMissing));
+    whatsapp.classList.toggle('disabled', cardChoiceMissing);
+    $('#whatsapp-order').lastChild.textContent = selectedPaymentMethod === 'card'
+        ? ' Enviar pedido com forma de pagamento'
+        : ' Enviar pedido pelo WhatsApp'
 }
 
 function toast(message) {
@@ -147,60 +162,91 @@ function closeOverlay(id) {
     if ($('#overlay').hidden && $('#payment-modal').hidden) document.body.style.overflow = ''
 }
 
-function crc16(s) {
+function crc16(payload) {
     let crc = 0xFFFF;
-    for (let i = 0; i < s.length; i++) {
-        crc ^= s.charCodeAt(i) << 8;
-        for (let j = 0; j < 8; j++) crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+    for (let i = 0; i < payload.length; i++) {
+        crc ^= payload.charCodeAt(i) << 8;
+        for (let bit = 0; bit < 8; bit++) crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
         crc &= 0xFFFF
     }
     return crc.toString(16).toUpperCase().padStart(4, '0')
 }
 
-function field(id, value) {
-    return id + String(value.length).padStart(2, '0') + value
+function pixField(id, value) {
+    return `${id}${String(value.length).padStart(2, '0')}${value}`
 }
 
-function makePayload(total) {
-    const merchant = `${field('00', 'BR.GOV.BCB.PIX')}${field('01', pix.key.trim())}`;
-    const additional = field('05', '***');
-    let s = field('00', '01') + field('26', merchant) + field('52', '0000') + field('53', '986') + field('54', total.toFixed(2)) + field('58', 'BR') + field('59', pix.name.trim().toUpperCase()) + field('60', pix.city.trim().toUpperCase()) + field('62', additional) + '6304';
-    return s + crc16(s)
+function makePixPayload(amount) {
+    const merchantAccount = pixField('00', 'BR.GOV.BCB.PIX') + pixField('01', PIX_KEY);
+    const additionalData = pixField('05', '***');
+    const fields = [
+        pixField('00', '01'),
+        pixField('01', '12'),
+        pixField('26', merchantAccount),
+        pixField('52', '0000'),
+        pixField('53', '986'),
+        pixField('54', amount.toFixed(2)),
+        pixField('58', 'BR'),
+        pixField('59', 'DEV HOUSE'),
+        pixField('60', 'RECIFE'),
+        pixField('62', additionalData),
+        '6304'
+    ].join('');
+    return fields + crc16(fields)
 }
-async function refreshPix() {
-    const total = products.reduce((s, p) => s + (cart[p.id] || 0) * p.price, 0),
-        status = $('#pix-status'),
-        canvas = $('#qr-canvas'),
-        placeholder = $('#qr-placeholder'),
-        copy = $('#copy-pix');
+
+function refreshPix() {
+    const total = products.reduce((sum, p) => sum + p.price * (cart[p.id] || 0), 0);
     $('#payment-total').textContent = money(total);
-    if (!pix?.key || !pix?.name || !pix?.city) {
-        status.textContent = 'Chave Pix não configurada';
-        placeholder.hidden = false;
-        canvas.hidden = true;
-        copy.disabled = true;
-        return
-    }
-    payload = makePayload(total);
-    try {
-        if (!window.QRCode) throw Error('QR indisponível');
-        await QRCode.toCanvas(canvas, payload, {
-            width: 340,
-            margin: 1,
-            color: {
-                dark: '#4b2038',
-                light: '#ffffff'
-            }
-        });
-        canvas.hidden = false;
-        placeholder.hidden = true;
-        copy.disabled = false;
-        status.textContent = 'Aponte a câmera do seu banco para o QR Code.'
-    } catch (e) {
-        status.textContent = 'Não foi possível gerar o QR Code. Confira sua conexão.';
-        copy.disabled = true
+    if (selectedPaymentMethod !== 'pix' || total <= 0) return;
+    $('#pix-qr-code').replaceChildren();
+    $('#pix-code').value = makePixPayload(total);
+    if (window.QRCode) {
+        new QRCode($('#pix-qr-code'), { text: $('#pix-code').value, width: 184, height: 184, correctLevel: QRCode.CorrectLevel.M });
+    } else {
+        $('#pix-qr-code').textContent = 'Não foi possível carregar o QR Code. Copie o código Pix.'
     }
 }
+
+function choosePaymentMethod(method) {
+    if (method === 'card' && selectedPaymentMethod !== 'card') selectedCardMethod = '';
+    selectedPaymentMethod = method;
+    document.querySelectorAll('[data-payment-choice]').forEach(button => {
+        const active = button.dataset.paymentChoice === method;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active))
+    });
+    $('#pix-payment-panel').hidden = method !== 'pix';
+    $('#card-payment-panel').hidden = method !== 'card';
+    document.querySelectorAll('[data-card-method]').forEach(button => {
+        const active = method === 'card' && button.dataset.cardMethod === selectedCardMethod;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active))
+    });
+    const rows = products.filter(product => cart[product.id]);
+    const lines = rows.map(product => `• ${cart[product.id]}x ${product.name} — ${money(product.price)} cada (${money(product.price * cart[product.id])})`);
+    const total = rows.reduce((sum, product) => sum + product.price * cart[product.id], 0);
+    updateWhatsAppOrder(lines, total);
+    if (method === 'pix') refreshPix()
+}
+
+document.querySelectorAll('[data-payment-choice]').forEach(button => {
+    button.addEventListener('click', () => choosePaymentMethod(button.dataset.paymentChoice))
+});
+document.querySelectorAll('[data-card-method]').forEach(button => {
+    button.addEventListener('click', () => {
+        selectedCardMethod = button.dataset.cardMethod;
+        document.querySelectorAll('[data-card-method]').forEach(option => {
+            const active = option === button;
+            option.classList.toggle('active', active);
+            option.setAttribute('aria-pressed', String(active))
+        });
+        const rows = products.filter(product => cart[product.id]);
+        const lines = rows.map(product => `• ${cart[product.id]}x ${product.name} — ${money(product.price)} cada (${money(product.price * cart[product.id])})`);
+        const total = rows.reduce((sum, product) => sum + product.price * cart[product.id], 0);
+        updateWhatsAppOrder(lines, total)
+    })
+});
 document.addEventListener('click', e => {
     const select = e.target.closest('[data-select]');
     if (select) {
@@ -261,21 +307,35 @@ $('#overlay').onclick = e => {
 $('#checkout').onclick = () => {
     closeOverlay('#overlay');
     openOverlay('#payment-modal');
-    refreshPix()
+    selectedCardMethod = '';
+    choosePaymentMethod('pix')
 };
-$('#close-payment').onclick = () => closeOverlay('#payment-modal');
+$('#close-payment').onclick = () => {
+    closeOverlay('#payment-modal')
+};
 $('#payment-modal').onclick = e => {
-    if (e.target === $('#payment-modal')) closeOverlay('#payment-modal')
-};
-$('#copy-pix').onclick = async () => {
-    if (!payload) return;
-    try {
-        await navigator.clipboard.writeText(payload);
-        toast('Código Pix copiado')
-    } catch {
-        toast('Não foi possível copiar. Selecione o código Pix')
+    if (e.target === $('#payment-modal')) {
+        closeOverlay('#payment-modal')
     }
 };
+$('#copy-pix').onclick = async () => {
+    const code = $('#pix-code').value;
+    if (!code) return;
+    try {
+        await navigator.clipboard.writeText(code);
+        toast('Código Pix copiado')
+    } catch {
+        $('#pix-code').focus();
+        $('#pix-code').select();
+        toast('Código selecionado para copiar')
+    }
+};
+$('#whatsapp-order').addEventListener('click', event => {
+    if ($('#whatsapp-order').getAttribute('aria-disabled') === 'true') {
+        event.preventDefault();
+        toast('Escolha crédito ou débito para continuar')
+    }
+});
 document.querySelectorAll('.category-tab').forEach(tab => tab.setAttribute('aria-pressed', tab.classList.contains('active')));
 renderProducts();
 renderCart();

@@ -10,7 +10,7 @@
   <link rel="icon" href="./logo-dev-house.png" type="image/png" />
   <link rel="apple-touch-icon" href="./icon-dev-house.png" />
   <link rel="stylesheet" href="./styles.css" />
-  <title>Dev. House | Cardápio</title>
+  <title>Dev. House | Bebidas</title>
 </head>
 
 <body>
@@ -61,7 +61,7 @@
       <div class="drawer-bottom" id="drawer-bottom">
         <div class="total-row"><span>Total</span><strong id="cart-total">R$ 0,00</strong></div><button
           class="primary-button" id="checkout">Continuar para pagamento <span>→</span></button>
-        <p>Pagamento seguro via PIX</p>
+        <p>Pagamento via Pix</p>
       </div>
     </aside>
   </div>
@@ -69,31 +69,48 @@
   <div class="modal-backdrop" id="payment-modal" hidden>
     <section class="payment-card" role="dialog" aria-modal="true" aria-labelledby="payment-title">
       <button class="icon-button modal-close" id="close-payment" aria-label="Fechar">×</button>
-      <div class="payment-top"><span class="pix-symbol">✳</span><span class="eyebrow dark">PAGAMENTO INSTANTÂNEO</span>
-      </div>
-      <h2 id="payment-title">Pague com <em>Pix</em></h2>
-      <p class="payment-intro">Abra o app do seu banco, escaneie o QR Code ou copie o código Pix.</p>
+      <div class="payment-top"><span class="pix-symbol">✳</span><span class="eyebrow dark">PAGAMENTO SEGURO</span></div>
+      <h2 id="payment-title">Como deseja <em>pagar?</em></h2>
+      <p class="payment-intro">Escolha uma forma de pagamento para continuar com seu pedido.</p>
       <div class="payment-total"><span>Valor do pedido</span><strong id="payment-total">R$ 0,00</strong></div>
-      <div class="qr-frame" id="qr-frame">
-        <div id="qr-placeholder" class="qr-placeholder"><span>▦</span><small>Gerando seu QR Code Pix…</small></div>
-        <canvas id="qr-canvas" hidden></canvas>
+      <div class="payment-options" role="group" aria-label="Escolha a forma de pagamento">
+        <button class="payment-option active" type="button" data-payment-choice="pix" aria-pressed="true">
+          <span class="payment-option-icon" aria-hidden="true">▦</span><span><strong>Pix</strong><small>QR Code ou copia e cola</small></span><span class="payment-option-check" aria-hidden="true">✓</span>
+        </button>
+        <button class="payment-option" type="button" data-payment-choice="card" aria-pressed="false">
+          <span class="payment-option-icon" aria-hidden="true">▰</span><span><strong>Cartão</strong><small>Crédito ou débito</small></span><span class="payment-option-check" aria-hidden="true">✓</span>
+        </button>
       </div>
-      <div class="pix-status" id="pix-status">Chave Pix não configurada</div>
-      <button class="primary-button" id="copy-pix" disabled>Copiar código PIX <span>↗</span></button>
+      <div class="payment-result" id="pix-payment-panel">
+        <strong>Leia o QR Code com o aplicativo do seu banco</strong>
+        <div class="pix-qr-frame"><div id="pix-qr-code" aria-label="QR Code Pix"></div></div>
+        <label class="pix-copy-field">Pix copia e cola
+          <textarea id="pix-code" readonly rows="3" aria-label="Código Pix copia e cola"></textarea>
+        </label>
+        <button class="secondary-button" id="copy-pix">Copiar código Pix</button>
+      </div>
+      <div class="payment-result card-payment-panel" id="card-payment-panel" hidden>
+        <strong>Pagamento com cartão</strong>
+        <p>Selecione crédito ou débito. Essa escolha será incluída no resumo enviado pelo WhatsApp.</p>
+        <div class="card-type-options" role="group" aria-label="Tipo do cartão">
+          <button class="card-type-option" type="button" data-card-method="credit" aria-pressed="false">Crédito</button>
+          <button class="card-type-option" type="button" data-card-method="debit" aria-pressed="false">Débito</button>
+        </div>
+      </div>
       <a class="whatsapp-button" id="whatsapp-order" href="https://wa.me/5581985483142" target="_blank"
         rel="noopener noreferrer">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path
             d="M20.5 3.5A11.8 11.8 0 0 0 2 17.7L.5 23.5l6-1.5A11.8 11.8 0 0 0 20.5 3.5ZM12 21a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.6.9.9-3.5-.2-.4A9.8 9.8 0 1 1 12 21Zm5.4-7.3c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-.9 1.1-.3.2-.6.1a8 8 0 0 1-2.4-1.5 9 9 0 0 1-1.7-2.1c-.2-.3 0-.5.1-.6l.5-.6c.1-.2.2-.3.3-.5s0-.4 0-.5-.7-1.7-1-2.3c-.2-.6-.5-.5-.7-.5H7.6c-.2 0-.5.1-.8.4s-1 1-1 2.4 1 2.8 1.1 3 2 3.1 4.9 4.3c.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4s-.2-.2-.5-.4Z" />
         </svg>
-        Solicitar pedido pelo WhatsApp
+        Enviar pedido pelo WhatsApp
       </a>
-      <p class="payment-footnote">O pagamento é feito diretamente para a chave PIX da casa.</p>
+      <p class="payment-footnote">Confira o valor antes de confirmar o pagamento no aplicativo do seu banco.</p>
     </section>
   </div>
   <div class="toast" id="toast" role="status"></div>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  <script src="./app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="./app.js" defer></script>
 </body>
 
 </html>
