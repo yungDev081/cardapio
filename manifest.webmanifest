@@ -1,7 +1,7 @@
 {
-  "name": "Dev. House — Cardápio de Bebidas",
+  "name": "Dev. House | Cardápio de Bebidas",
   "short_name": "Dev. House",
-  "description": "Cardápio digital de bebidas com pagamento via Pix.",
+  "description": "Cardápio digital de bebidas com pagamento via PIX.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#fffaf0",
